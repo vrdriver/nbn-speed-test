@@ -1,4 +1,6 @@
 
+<img width="932" height="517" alt="Screenshot 2025-08-20 at 11 22 01" src="https://github.com/user-attachments/assets/c372eea7-82f8-4096-ba7e-09213058363b" />
+
 # NBN Speed Test
 
 This project runs internet speed tests on a Raspberry Pi using Ookla Speedtest CLI, stores results in a MySQL database, and shows them on a web dashboard.
