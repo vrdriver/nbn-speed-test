@@ -122,15 +122,16 @@ Match the `$API_KEY` in `data.php` (use [https://www.uuidgenerator.net/version4]
     
     ```
     
-4.  Schedule it with cron (e.g., every 30 minutes):
+4.  Schedule it with cron (e.g., every hour):
     
     ```bash
     crontab -e
-    */30 * * * * /usr/bin/python3 /path/to/active_nbn.py
+    0 * * * * /usr/bin/python3 /path/to/active_nbn.py   
     
     ```
     
 5.  View the dashboard at `https://yourdomain.com/nbn/index.html`.
+
 
 ## Notes
 
