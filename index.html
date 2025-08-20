@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NBN Speed Test Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* Add CSS to constrain the chart container */
+    .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 1200px; /* Optional: limit max width for large screens */
+        height: 400px; /* Set desired chart height */
+        margin: 0 auto; /* Center the chart */
+    }
+</style>
+</head>
+<body>
+<h1>NBN Speed Test Dashboard</h1>
+
+<label>Range:
+<select id="range">
+    <option value="24h">Last 24 hours</option>
+    <option value="7d">Last 7 days</option>
+    <option value="30d" selected>Last 30 days</option>
+    <option value="custom">Custom Range</option>
+</select>
+</label>
+
+<div id="customRange" style="display:none;">
+    Start: <input type="date" id="startDate">
+    End: <input type="date" id="endDate">
+    <button onclick="loadData()">Apply</button>
+</div>
+
+<!-- Wrap canvas in a container with defined height -->
+<div class="chart-container">
+    <canvas id="speedChart"></canvas>
+</div>
+
+<script>
+const ctx = document.getElementById('speedChart').getContext('2d');
+let chart;
+
+document.getElementById('range').addEventListener('change', () => {
+    document.getElementById('customRange').style.display = (document.getElementById('range').value === 'custom') ? 'block' : 'none';
+    if (document.getElementById('range').value !== 'custom') loadData();
+});
+
+async function loadData() {
+    let range = document.getElementById('range').value;
+    let url = 'data.php?granularity=hour';
+    let endDt = new Date();
+    let startDt = new Date();
+    if (range === 'custom') {
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        if (!start || !end) return alert("Pick start and end dates");
+        startDt = new Date(start);
+        endDt = new Date(end);
+    } else {
+        switch (range) {
+            case '24h': startDt.setHours(endDt.getHours() - 24); break;
+            case '7d': startDt.setDate(endDt.getDate() - 7); break;
+            case '30d': startDt.setDate(endDt.getDate() - 30); break;
+        }
+    }
+    if ((endDt - startDt) / (1000 * 60 * 60 * 24) > 365) return alert("Range too large (max 1 year)");
+    url += `&start_date=${startDt.toISOString().slice(0, 10)}&end_date=${endDt.toISOString().slice(0, 10)}`;
+
+    const resp = await fetch(url, {
+        headers: {
+            'X-API-KEY': '491cc49c-94ea-410a-8adf-1ac79027771f'
+        }
+    });
+    const data = await resp.json();
+    if (data.error) { alert(data.error); return; }
+
+    const labels = data.map(d => d.bucket);
+    const download = data.map(d => d.down_avg);
+    const upload = data.map(d => d.up_avg);
+    const ping = data.map(d => d.ping_avg);
+
+    // Moving averages (simple)
+    const ma7 = download.map((v, i, arr) => i < 7 ? v : arr.slice(i - 6, i + 1).reduce((a, b) => a + b, 0) / 7);
+    const ma30 = download.map((v, i, arr) => i < 30 ? v : arr.slice(i - 29, i + 1).reduce((a, b) => a + b, 0) / 30);
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Download Mbps', data: download, borderColor: 'blue', fill: false },
+                { label: 'Download 7d MA', data: ma7, borderColor: 'lightblue', fill: false, borderDash: [5, 5] },
+                { label: 'Download 30d MA', data: ma30, borderColor: 'darkblue', fill: false, borderDash: [2, 2] },
+                { label: 'Upload Mbps', data: upload, borderColor: 'green', fill: false },
+                { label: 'Ping ms', data: ping, borderColor: 'orange', fill: false, yAxisID: 'y1' }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false, // Allow chart to fill container height
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'Mbps' } },
+                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Ping ms' }, grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+loadData();
+</script>
+</body>
+</html>
